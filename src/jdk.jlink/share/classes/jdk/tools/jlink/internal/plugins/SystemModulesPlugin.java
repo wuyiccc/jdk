@@ -704,8 +704,6 @@ public final class SystemModulesPlugin extends AbstractPlugin {
             // 99 does not work - see https://bugs.openjdk.org/browse/JDK-8246197
             for (int index = 0; index < moduleInfos.size(); index++) {
                 if (index % 70 == 0) {
-                    // start new child method each 70 module infos
-
                     // finish last helper method
                     if (helperMethodCount > 0) {
                         mv.visitInsn(RETURN);
