@@ -30,9 +30,16 @@ import java.util.StringJoiner;
  * @test
  * @summary Make sure that 100 modules can be linked using jlink.
  * @bug 8240567
- * @modules jdk.jlink
- * @library /test/lib
- * @run main JLink100Modules
+ * @library ../lib
+ * @modules java.base/jdk.internal.jimage
+ *          jdk.jdeps/com.sun.tools.classfile
+ *          jdk.jlink/jdk.tools.jlink.internal
+ *          jdk.jlink/jdk.tools.jlink.plugin
+ *          jdk.jlink/jdk.tools.jmod
+ *          jdk.jlink/jdk.tools.jimage
+ *          jdk.compiler
+ * @build tests.*
+ * @run main/othervm -verbose:gc -Xmx1g -Xlog:init=debug -XX:+UnlockDiagnosticVMOptions -XX:+BytecodeVerificationLocal JLink100Modules
  */
 public class JLink100Modules {
 
@@ -52,10 +59,10 @@ public class JLink100Modules {
 
         // create module reading the generated modules
         Path mainModulePath = src.resolve("bug8240567");
+        Path moduleDir = Files.createDirectories(mainModulePath);
         Path mainModuleInfo = mainModulePath.resolve("module-info.java");
         Files.writeString(mainModuleInfo, mainModuleInfoContent.toString());
-
-
+        throw new Exception();
     }
 }
 

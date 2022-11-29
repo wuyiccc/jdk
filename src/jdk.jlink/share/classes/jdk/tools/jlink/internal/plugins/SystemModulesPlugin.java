@@ -703,7 +703,7 @@ public final class SystemModulesPlugin extends AbstractPlugin {
             // The number 70 is chosen "randomly" to be below the 64kb limit of a method
             // 99 does not work - see https://bugs.openjdk.org/browse/JDK-8246197
             for (int index = 0; index < moduleInfos.size(); index++) {
-                if (index % 70 == 0) {
+                if (index % 95 == 0) {
                     // finish last helper method
                     if (helperMethodCount > 0) {
                         mv.visitInsn(RETURN);
@@ -712,7 +712,7 @@ public final class SystemModulesPlugin extends AbstractPlugin {
                     }
 
                     // create method with name suffix helperMethodCount
-                    mv = cw.visitMethod(ACC_PUBLIC,
+                    mv = cw.visitMethod(ACC_PRIVATE,
                             helperMethodNamePrefix + helperMethodCount,
                             "(" + MODULE_DESCRIPTOR_ARRAY_SIGNATURE + ")V",
                             "(" + MODULE_DESCRIPTOR_ARRAY_SIGNATURE + ")V",
