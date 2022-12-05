@@ -24,7 +24,9 @@
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.StringJoiner;
+import java.util.spi.ToolProvider;
 
 /*
  * @test
@@ -42,15 +44,33 @@ import java.util.StringJoiner;
  * @run main/othervm -verbose:gc -Xmx1g -Xlog:init=debug -XX:+UnlockDiagnosticVMOptions -XX:+BytecodeVerificationLocal JLink100Modules
  */
 public class JLink100Modules {
+    private static final ToolProvider JAVAC_TOOL = ToolProvider.findFirst("javac")
+                                                               .orElseThrow(() -> new RuntimeException("javac tool not found"));
+    private static final ToolProvider JLINK_TOOL = ToolProvider.findFirst("jlink")
+                                                               .orElseThrow(() -> new RuntimeException("jlink tool not found"));
+
+    static void report(String command, String[] args) {
+        System.out.println(command + " " + String.join(" ", Arrays.asList(args)));
+    }
+
+    static void javac(String[] args) {
+        report("javac", args);
+        JAVAC_TOOL.run(System.out, System.err, args);
+    }
+
+    static void jlink(String[] args) {
+        report("jlink", args);
+        JLINK_TOOL.run(System.out, System.err, args);
+    }
 
     public static void main(String[] args) throws Exception {
         Path src = Paths.get("bug8240567");
 
-        StringJoiner mainModuleInfoContent = new StringJoiner("; requires ", "module mainModules { requires ", "}");
+        StringJoiner mainModuleInfoContent = new StringJoiner(";\n  requires ", "module bug8240567x {\n  requires ", "\n;}");
 
         // create 100 modules
-        for (int i = 0; i<100; i++) {
-            String name = "module" + i;
+        for (int i = 0; i<200; i++) {
+            String name = "module" + i + "x";
             Path moduleDir = Files.createDirectories(src.resolve(name));
             String moduleInfoContent = "module " + name + " {}";
             Files.writeString(moduleDir.resolve("module-info.java"), moduleInfoContent);
@@ -58,10 +78,25 @@ public class JLink100Modules {
         }
 
         // create module reading the generated modules
-        Path mainModulePath = src.resolve("bug8240567");
+        Path mainModulePath = src.resolve("bug8240567x");
         Path moduleDir = Files.createDirectories(mainModulePath);
         Path mainModuleInfo = mainModulePath.resolve("module-info.java");
         Files.writeString(mainModuleInfo, mainModuleInfoContent.toString());
+
+        String out = src.resolve("out").toString();
+
+        javac(new String[] {
+                "-d", out,
+                "--module-source-path", src.toString(),
+                "--module", "bug8240567x"
+        });
+
+        jlink(new String[] {
+                "--output",  src.resolve("out-jlink").toString(),
+                "--module-path",  out,
+                "--add-modules", "bug8240567x"
+        });
+
         throw new Exception();
     }
 }
