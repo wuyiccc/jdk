@@ -696,47 +696,6 @@ public final class SystemModulesPlugin extends AbstractPlugin {
          * Generate bytecode for moduleDescriptors method
          */
         private void genModuleDescriptorsMethod(ClassWriter cw) {
-            int helperMethodCount = 0;
-            final String helperMethodNamePrefix = "moduleDescriptorsSub";
-
-            // The method is "manually split" based on the heuristics that 70 ModuleDescriptors are smaller than 64kb
-            // The number 70 is chosen "randomly" to be below the 64kb limit of a method
-            // 99 does not work - see https://bugs.openjdk.org/browse/JDK-8246197
-            for (int index = 0; index < moduleInfos.size(); index++) {
-                if (index % 95 == 0) {
-                    // finish last helper method
-                    if (helperMethodCount > 0) {
-                        mv.visitInsn(RETURN);
-                        mv.visitMaxs(0, 0);
-                        mv.visitEnd();
-                    }
-
-                    // create method with name suffix helperMethodCount
-                    mv = cw.visitMethod(ACC_PRIVATE,
-                            helperMethodNamePrefix + helperMethodCount,
-                            "(" + MODULE_DESCRIPTOR_ARRAY_SIGNATURE + ")V",
-                            "(" + MODULE_DESCRIPTOR_ARRAY_SIGNATURE + ")V",
-                            null);
-
-                    helperMethodCount++;
-                }
-
-                ModuleInfo minfo = moduleInfos.get(index);
-                // Here, the assignment to the array at position "index" is created
-                new ModuleDescriptorBuilder(
-                        minfo.descriptor(),
-                        minfo.packages(),
-                        index).build();
-            }
-
-            // finish last helper method
-            // same code as above
-            mv.visitInsn(RETURN);
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
-
-            // now the content of the method calling the helper methods is generated
-
             this.mv = cw.visitMethod(ACC_PUBLIC,
                                      "moduleDescriptors",
                                      "()" + MODULE_DESCRIPTOR_ARRAY_SIGNATURE,
@@ -747,16 +706,12 @@ public final class SystemModulesPlugin extends AbstractPlugin {
             mv.visitTypeInsn(ANEWARRAY, "java/lang/module/ModuleDescriptor");
             mv.visitVarInsn(ASTORE, MD_VAR);
 
-            for (int index = 0; index < helperMethodCount; index++) {
-                // create call to helperMethod{i}
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitVarInsn(ALOAD, MD_VAR);
-                mv.visitMethodInsn(INVOKEVIRTUAL, this.className,
-                        helperMethodNamePrefix + index,
-                        "(" + MODULE_DESCRIPTOR_ARRAY_SIGNATURE + ")V",
-                        false);
+            for (int index = 0; index < moduleInfos.size(); index++) {
+                ModuleInfo minfo = moduleInfos.get(index);
+                new ModuleDescriptorBuilder(minfo.descriptor(),
+                                            minfo.packages(),
+                                            index).build();
             }
-
             mv.visitVarInsn(ALOAD, MD_VAR);
             mv.visitInsn(ARETURN);
             mv.visitMaxs(0, 0);
