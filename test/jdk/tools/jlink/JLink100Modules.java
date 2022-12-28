@@ -69,7 +69,7 @@ public class JLink100Modules {
         StringJoiner mainModuleInfoContent = new StringJoiner(";\n  requires ", "module bug8240567x {\n  requires ", "\n;}");
 
         // create 100 modules
-        for (int i = 0; i<200; i++) {
+        for (int i = 0; i<2_000; i++) {
             String name = "module" + i + "x";
             Path moduleDir = Files.createDirectories(src.resolve(name));
             String moduleInfoContent = "module " + name + " {}";
@@ -79,9 +79,22 @@ public class JLink100Modules {
 
         // create module reading the generated modules
         Path mainModulePath = src.resolve("bug8240567x");
-        Path moduleDir = Files.createDirectories(mainModulePath);
+        Files.createDirectories(mainModulePath);
         Path mainModuleInfo = mainModulePath.resolve("module-info.java");
         Files.writeString(mainModuleInfo, mainModuleInfoContent.toString());
+
+        Path mainClassDir = mainModulePath.resolve("testpackage");
+        Files.createDirectories(mainClassDir);
+
+        Files.writeString(mainClassDir.resolve("JLink100ModulesTest.java"), """
+                package testpackage;
+
+                public class JLink100ModulesTest {
+                    public static void main(String[] args) throws Exception {
+                        System.out.println("JLink100ModulesTest started.");
+                    }
+                }
+                """);
 
         String out = src.resolve("out").toString();
 
@@ -93,9 +106,12 @@ public class JLink100Modules {
 
         jlink(new String[] {
                 "--output",  src.resolve("out-jlink").toString(),
-                "--module-path",  out,
+                "--module-path", out,
                 "--add-modules", "bug8240567x"
+                //"--launcher mylauncher=bug8240567x/testpackage.JLink100ModulesTest"
         });
+
+        // TODO - check if everything works
 
         throw new Exception();
     }
