@@ -30,9 +30,9 @@
 //
 // Unaligned access is undefined behavior according to the standard. Some architectures support
 // aligned and unaligned memory accesses via the same instructions (i.e. x86, AArch64) while some do
-// not (i.e. RISC-V, PowerPC). Compilers are free to assume that all memory accesses of a type T are
-// done at a suitably aligned address for type T, that is an address aligned to alignof(T). This is
-// not always the case, as there are use cases where we may want to access type T at a non-suitably
+// not (i.e. RISC-V). Compilers are free to assume that all memory accesses of a type T are done at
+// a suitably aligned address for type T, that is an address aligned to alignof(T). This is not
+// always the case, as there are use cases where we may want to access type T at a non-suitably
 // aligned address. For example, when serializing scalar types to a buffer without padding.
 
 // UnalignedAccess<T>::load()
