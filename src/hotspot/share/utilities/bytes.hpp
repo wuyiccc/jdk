@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,14 @@
 #ifndef SHARE_UTILITIES_BYTES_HPP
 #define SHARE_UTILITIES_BYTES_HPP
 
+#include "memory/allStatic.hpp"
+#include "utilities/byteswap.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/unalignedAccess.hpp"
 
-class Endian : AllStatic {
-public:
+class Endian final : public AllStatic {
+ public:
   enum Order {
     LITTLE,
     BIG,
@@ -43,11 +47,49 @@ public:
 
   // Returns true, if the byte ordering used by Java is different from
   // the native byte ordering of the underlying machine.
-  static inline bool is_Java_byte_ordering_different() {
+  static constexpr bool is_Java_byte_ordering_different() {
     return NATIVE != JAVA;
   }
 };
 
-#include CPU_HEADER(bytes)
+template <typename T, bool D = Endian::is_Java_byte_ordering_different()>
+struct BytesSwapImpl;
+
+template <typename T>
+struct BytesSwapImpl<T, false> final {
+  ALWAYSINLINE T operator()(T x) const {
+    return x;
+  }
+};
+
+template <typename T>
+struct BytesSwapImpl<T, true> final {
+  ALWAYSINLINE T operator()(T x) const {
+    return byteswap<T>(x);
+  }
+};
+
+class Bytes final : public AllStatic {
+ public:
+  static ALWAYSINLINE u2 get_native_u2(const void* p) { return UnalignedAccess::load<u2>(p); }
+  static ALWAYSINLINE u4 get_native_u4(const void* p) { return UnalignedAccess::load<u4>(p); }
+  static ALWAYSINLINE u8 get_native_u8(const void* p) { return UnalignedAccess::load<u8>(p); }
+
+  static ALWAYSINLINE void put_native_u2(void* p, u2 x) { UnalignedAccess::store<u2>(p, x); }
+  static ALWAYSINLINE void put_native_u4(void* p, u4 x) { UnalignedAccess::store<u4>(p, x); }
+  static ALWAYSINLINE void put_native_u8(void* p, u8 x) { UnalignedAccess::store<u8>(p, x); }
+
+  static ALWAYSINLINE u2 get_Java_u2(const void* p) { return BytesSwapImpl<u2>{}(get_native_u2(p)); }
+  static ALWAYSINLINE u4 get_Java_u4(const void* p) { return BytesSwapImpl<u4>{}(get_native_u4(p)); }
+  static ALWAYSINLINE u8 get_Java_u8(const void* p) { return BytesSwapImpl<u8>{}(get_native_u8(p)); }
+
+  static ALWAYSINLINE void put_Java_u2(void* p, u2 x) { put_native_u2(p, BytesSwapImpl<u2>{}(x)); }
+  static ALWAYSINLINE void put_Java_u4(void* p, u4 x) { put_native_u4(p, BytesSwapImpl<u4>{}(x)); }
+  static ALWAYSINLINE void put_Java_u8(void* p, u8 x) { put_native_u8(p, BytesSwapImpl<u8>{}(x)); }
+
+  static ALWAYSINLINE u2 swap_u2(u2 x) { return byteswap<u2>(x); }
+  static ALWAYSINLINE u4 swap_u4(u4 x) { return byteswap<u4>(x); }
+  static ALWAYSINLINE u8 swap_u8(u8 x) { return byteswap<u8>(x); }
+};
 
 #endif // SHARE_UTILITIES_BYTES_HPP
