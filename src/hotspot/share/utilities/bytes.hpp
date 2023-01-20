@@ -79,17 +79,17 @@ class Bytes final : public AllStatic {
   static ALWAYSINLINE void put_native_u4(void* p, u4 x) { UnalignedAccess::store<u4>(p, x); }
   static ALWAYSINLINE void put_native_u8(void* p, u8 x) { UnalignedAccess::store<u8>(p, x); }
 
-  static ALWAYSINLINE u2 get_Java_u2(const void* p) { return BytesSwapImpl<u2>{}(get_native_u2(p)); }
-  static ALWAYSINLINE u4 get_Java_u4(const void* p) { return BytesSwapImpl<u4>{}(get_native_u4(p)); }
-  static ALWAYSINLINE u8 get_Java_u8(const void* p) { return BytesSwapImpl<u8>{}(get_native_u8(p)); }
+  static ALWAYSINLINE u2 swap_u2(u2 x) { return BytesSwapImpl<u2>{}(x); }
+  static ALWAYSINLINE u4 swap_u4(u4 x) { return BytesSwapImpl<u4>{}(x); }
+  static ALWAYSINLINE u8 swap_u8(u8 x) { return BytesSwapImpl<u8>{}(x); }
 
-  static ALWAYSINLINE void put_Java_u2(void* p, u2 x) { put_native_u2(p, BytesSwapImpl<u2>{}(x)); }
-  static ALWAYSINLINE void put_Java_u4(void* p, u4 x) { put_native_u4(p, BytesSwapImpl<u4>{}(x)); }
-  static ALWAYSINLINE void put_Java_u8(void* p, u8 x) { put_native_u8(p, BytesSwapImpl<u8>{}(x)); }
+  static ALWAYSINLINE u2 get_Java_u2(const void* p) { return swap_u2(get_native_u2(p)); }
+  static ALWAYSINLINE u4 get_Java_u4(const void* p) { return swap_u4(get_native_u4(p)); }
+  static ALWAYSINLINE u8 get_Java_u8(const void* p) { return swap_u8(get_native_u8(p)); }
 
-  static ALWAYSINLINE u2 swap_u2(u2 x) { return byteswap<u2>(x); }
-  static ALWAYSINLINE u4 swap_u4(u4 x) { return byteswap<u4>(x); }
-  static ALWAYSINLINE u8 swap_u8(u8 x) { return byteswap<u8>(x); }
+  static ALWAYSINLINE void put_Java_u2(void* p, u2 x) { put_native_u2(p, swap_u2(x)); }
+  static ALWAYSINLINE void put_Java_u4(void* p, u4 x) { put_native_u4(p, swap_u4(x)); }
+  static ALWAYSINLINE void put_Java_u8(void* p, u8 x) { put_native_u8(p, swap_u8(x)); }
 };
 
 #endif // SHARE_UTILITIES_BYTES_HPP
