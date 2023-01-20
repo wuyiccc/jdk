@@ -74,6 +74,9 @@ struct ByteswapImpl<T, 1> final {
  * Fallback
  *****************************************************************************/
 
+template <typename T, size_t N = sizeof(T)>
+struct ByteswapFallbackImpl;
+
 // We support 8-bit integer types to be compatible with C++23's std::byteswap.
 template <typename T>
 struct ByteswapFallbackImpl<T, 1> final {
