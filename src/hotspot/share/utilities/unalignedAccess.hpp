@@ -66,12 +66,35 @@ struct CanAccessUnalignedImpl final
                                            std::is_default_constructible<T>::value)> {};
 
 template <typename T, size_t S = sizeof(T), size_t A = alignof(T)>
+struct UnalignedLoadImpl;
+template <typename T, size_t S = sizeof(T), size_t A = alignof(T)>
+struct UnalignedStoreImpl;
+
+class UnalignedAccess final : public AllStatic {
+ public:
+  // Load the bits of the value x of type T from the specified address p.
+  template <typename T, ENABLE_IF(CanAccessUnalignedImpl<T>::value)>
+  static ALWAYSINLINE T load(const void* p) {
+    return UnalignedLoadImpl<T>{}(p);
+  }
+
+  // Store the bits of the value x of type U, which must be implicitly convertible to type T, at the
+  // specified address p. This approach requires explicitly specifying type T for readability,
+  // rather than deriving type T from the argument.
+  template <typename T, typename U = T, ENABLE_IF(CanAccessUnalignedImpl<T>::value &&
+                                                  std::is_convertible<U, T>::value)>
+  static ALWAYSINLINE void store(void* p, U x) {
+    UnalignedStoreImpl<T>{}(p, x);
+  }
+};
+
+template <typename T, size_t S, size_t A>
 struct UnalignedLoadImpl final {
   ALWAYSINLINE T operator()(const void* p) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == S);
     STATIC_ASSERT(alignof(T) == A);
-#if (defined(__GNUC__) && !defined(__clang__)) || HAS_BUILTIN(__builtin_memcpy)
+#if defined(TARGET_COMPILER_gcc)
     // When available, explicitly prefer the builtin memcpy variant. This ensures GCC/Clang will
     // do its best at generating optimal machine code regardless of build options. For architectures
     // which support unaligned access, this typically results in a single instruction. For other
@@ -80,7 +103,7 @@ struct UnalignedLoadImpl final {
     T x;
     __builtin_memcpy(&x, p, S);
     return x;
-#elif defined(_MSC_VER)
+#elif defined(TARGET_COMPILER_visCPP)
     return *static_cast<__unaligned const T*>(p);
 #else
     // Most compilers will generate optimal machine code.
@@ -91,20 +114,20 @@ struct UnalignedLoadImpl final {
   }
 };
 
-template <typename T, size_t S = sizeof(T), size_t A = alignof(T)>
+template <typename T, size_t S, size_t A>
 struct UnalignedStoreImpl final {
   ALWAYSINLINE void operator()(void* p, T x) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == S);
     STATIC_ASSERT(alignof(T) == A);
-#if (defined(__GNUC__) && !defined(__clang__)) || HAS_BUILTIN(__builtin_memcpy)
+#if defined(TARGET_COMPILER_gcc)
     // When available, explicitly prefer the builtin memcpy variant. This ensures GCC/Clang will
     // do its best at generating optimal machine code regardless of build options. For architectures
     // which support unaligned access, this typically results in a single instruction. For other
     // architectures, GCC/Clang will attempt to determine if the access is aligned first at compile
     // time and generate a single instruction otherwise it will fallback to a more general approach.
     __builtin_memcpy(p, &x, S);
-#elif defined(_MSC_VER)
+#elif defined(TARGET_COMPILER_visCPP)
     *static_cast<__unaligned T*>(p) = x;
 #else
     // Most compilers will generate optimal machine code.
@@ -144,7 +167,7 @@ struct UnalignedBitCastImpl final {
     STATIC_ASSERT(sizeof(To) == sizeof(From));
 #if HAS_BUILTIN(__builtin_bit_cast)
     return __builtin_bit_cast(To, from);
-#elif (defined(__GNUC__) && !defined(__clang__)) || HAS_BUILTIN(__builtin_memcpy)
+#elif defined(TARGET_COMPILER_gcc)
     To to;
     __builtin_memcpy(&to, &from, sizeof(To));
     return to;
@@ -162,83 +185,71 @@ struct UnalignedBitCastImpl final {
 //
 // NOTE: these should also be enabled for MSan and TSan as well when/if we use those.
 
-template <typename T>
-struct UnalignedLoadImpl<T, 2, 2> final {
+template <typename T, size_t A>
+struct UnalignedLoadImpl<T, 2, A> final {
   ALWAYSINLINE T operator()(const void* p) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == 2);
-    STATIC_ASSERT(alignof(T) == 2);
+    STATIC_ASSERT(alignof(T) == A);
+    STATIC_ASSERT(A >= 2);
     return UnalignedBitCastImpl<T>{}(__sanitizer_unaligned_load16(p));
   }
 };
 
-template <typename T>
-struct UnalignedStoreImpl<T, 2, 2> final {
+template <typename T, size_t A>
+struct UnalignedStoreImpl<T, 2, A> final {
   ALWAYSINLINE void operator()(void* p, T x) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == 2);
-    STATIC_ASSERT(alignof(T) == 2);
+    STATIC_ASSERT(alignof(T) == A);
+    STATIC_ASSERT(A >= 2);
     __sanitizer_unaligned_store16(p, UnalignedBitCastImpl<uint16_t>{}(x));
   }
 };
 
-template <typename T>
-struct UnalignedLoadImpl<T, 4, 4> final {
+template <typename T, size_t A>
+struct UnalignedLoadImpl<T, 4, A> final {
   ALWAYSINLINE T operator()(const void* p) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == 4);
-    STATIC_ASSERT(alignof(T) == 4);
+    STATIC_ASSERT(alignof(T) == A);
+    STATIC_ASSERT(A >= 4);
     return UnalignedBitCastImpl<T>{}(__sanitizer_unaligned_load32(p));
   }
 };
 
-template <typename T>
-struct UnalignedStoreImpl<T, 4, 4> final {
+template <typename T, size_t A>
+struct UnalignedStoreImpl<T, 4, A> final {
   ALWAYSINLINE void operator()(void* p, T x) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == 4);
-    STATIC_ASSERT(alignof(T) == 4);
+    STATIC_ASSERT(alignof(T) == A);
+    STATIC_ASSERT(A >= 4);
     __sanitizer_unaligned_store32(p, UnalignedBitCastImpl<uint32_t>{}(x));
   }
 };
 
-template <typename T>
-struct UnalignedLoadImpl<T, 8, 8> final {
+template <typename T, size_t A>
+struct UnalignedLoadImpl<T, 8, A> final {
   ALWAYSINLINE T operator()(const void* p) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == 8);
-    STATIC_ASSERT(alignof(T) == 8);
+    STATIC_ASSERT(alignof(T) == A);
+    STATIC_ASSERT(A >= 8);
     return UnalignedBitCastImpl<T>{}(__sanitizer_unaligned_load64(p));
   }
 };
 
-template <typename T>
-struct UnalignedStoreImpl<T, 8, 8> final {
+template <typename T, size_t A>
+struct UnalignedStoreImpl<T, 8, A> final {
   ALWAYSINLINE void operator()(void* p, T x) const {
     STATIC_ASSERT(CanAccessUnalignedImpl<T>::value);
     STATIC_ASSERT(sizeof(T) == 8);
-    STATIC_ASSERT(alignof(T) == 8);
+    STATIC_ASSERT(alignof(T) == A);
+    STATIC_ASSERT(A >= 8);
     __sanitizer_unaligned_store64(p, UnalignedBitCastImpl<uint64_t>{}(x));
   }
 };
 #endif
-
-class UnalignedAccess final : public AllStatic {
- public:
-  // Load the bits of the value x of type T from the specified address p.
-  template <typename T, ENABLE_IF(CanAccessUnalignedImpl<T>::value)>
-  static ALWAYSINLINE T load(const void* p) {
-    return UnalignedLoadImpl<T>{}(p);
-  }
-
-  // Store the bits of the value x of type U, which must be implicitly convertible to type T, at the
-  // specified address p. This approach requires explicitly specifying type T for readability,
-  // rather than deriving type T from the argument.
-  template <typename T, typename U = T, ENABLE_IF(CanAccessUnalignedImpl<T>::value &&
-                                                  std::is_convertible<U, T>::value)>
-  static ALWAYSINLINE void store(void* p, U x) {
-    UnalignedStoreImpl<T>{}(p, x);
-  }
-};
 
 #endif // SHARE_UTILITIES_UNALIGNED_ACCESS_HPP
