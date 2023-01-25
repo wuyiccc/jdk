@@ -555,6 +555,7 @@ extern "C" {                                                         \
 
 // Definitions for JVM
 
+// JVM_ENTRY宏定义位置
 #define JVM_ENTRY(result_type, header)                               \
 extern "C" {                                                         \
   result_type JNICALL header {                                       \
