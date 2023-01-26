@@ -505,6 +505,8 @@ JVM_END
 // java.lang.Object ///////////////////////////////////////////////
 
 
+// jdk native method hashcode implementation
+
 JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_IHashCode");
   // as implemented in the classic virtual machine; return 0 if object is NULL

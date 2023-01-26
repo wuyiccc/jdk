@@ -341,6 +341,7 @@ class markOopDesc: public oopDesc {
   markOop incr_age()          const { return age() == max_age ? markOop(this) : set_age(age() + 1); }
 
   // hash operations
+  // 生成java对象hash值的方法
   intptr_t hash() const {
     return mask_bits(value() >> hash_shift, hash_mask);
   }
